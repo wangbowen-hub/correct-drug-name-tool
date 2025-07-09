@@ -14,7 +14,7 @@ conda activate correct-drug-env
 安装所需依赖：
 
 ```bash
-pip install -r requirements.txt
+pip install -r requirements.txt -i https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple
 ```
 
 ## 配置设置

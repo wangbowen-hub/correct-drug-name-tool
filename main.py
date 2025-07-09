@@ -192,7 +192,7 @@ def batch_correct(dir_path, thinking=False):
         None
     """
     for file in os.listdir(dir_path):
-        if file.endswith('.xlsx') and not file.startswith('~') and not file.startswith('correct-'):
+        if file.endswith('.xlsx') and not file.startswith('.~') and not file.startswith('correct-'):
             original_file_path = os.path.join(dir_path, file)
             output_file_path = os.path.join(dir_path, "correct-"+file)
             
