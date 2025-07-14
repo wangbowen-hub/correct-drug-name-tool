@@ -1,192 +1,132 @@
 @echo off
-:: AI药物名称纠正工具运行脚本 (Windows版本)
-:: 
-:: 使用方法:
-::   双击run.bat                        # 基本运行
-::   run.bat --thinking                  # 开启思考模式
-::   run.bat --dir "C:\path\to\files"    # 指定目录
-::   run.bat --dir "C:\path\to\files" --thinking  # 组合使用
+REM AI Drug Name Correction Tool - Windows Batch Script
+REM Usage:
+REM   run.bat                         - Basic run
+REM   run.bat --thinking              - Enable thinking mode
+REM   run.bat --dir "C:\path\to\files" - Specify directory
 
 setlocal enabledelayedexpansion
 
-:: 设置控制台编码为UTF-8
-chcp 65001 >nul
+REM Set console encoding to UTF-8
+chcp 65001 >nul 2>&1
 
-:: 颜色定义（Windows ANSI转义序列）
-set "RED=[91m"
-set "GREEN=[92m"
-set "YELLOW=[93m"
-set "BLUE=[94m"
-set "NC=[0m"
+REM Show help if requested
+if "%1"=="-h" goto :show_help
+if "%1"=="--help" goto :show_help
+if "%1"=="/?" goto :show_help
 
-:: 打印带颜色的消息函数
-goto :skip_functions
-
-:print_info
-echo %BLUE%[信息]%NC% %~1
-goto :eof
-
-:print_success
-echo %GREEN%[成功]%NC% %~1
-goto :eof
-
-:print_warning
-echo %YELLOW%[警告]%NC% %~1
-goto :eof
-
-:print_error
-echo %RED%[错误]%NC% %~1
-goto :eof
-
-:show_usage
 echo.
-echo AI药物名称纠正工具运行脚本 (Windows版本)
+echo [INFO] Starting AI Drug Name Correction Tool...
 echo.
-echo 使用方法:
-echo   双击run.bat                           # 基本运行，处理当前目录下的Excel文件
-echo   run.bat --thinking                    # 开启思考模式进行更详细处理
-echo   run.bat --dir "C:\path\to\files"      # 指定目录处理Excel文件
-echo   run.bat --dir "C:\path\to\files" --thinking  # 同时指定目录和开启思考模式
-echo.
-echo 注意事项:
-echo   - 确保已创建conda环境 'correct-drug-env'
-echo   - 确保.env文件包含正确的API配置
-echo   - Excel文件应包含药物名称数据在第一列
-echo.
-pause
-goto :eof
 
-:check_conda
-call :print_info "检查conda是否安装..."
+REM Check if conda is available
+echo [INFO] Checking conda installation...
 where conda >nul 2>&1
-if %errorlevel% neq 0 (
-    call :print_error "conda未安装或未在PATH中找到"
-    call :print_info "请先安装Anaconda或Miniconda"
+if errorlevel 1 (
+    echo [ERROR] conda not found in PATH
+    echo [INFO] Please install Anaconda or Miniconda first
     echo.
     pause
     exit /b 1
 )
-call :print_success "conda已找到"
-goto :eof
+echo [SUCCESS] conda found
 
-:check_conda_env
-call :print_info "检查conda环境是否存在..."
+REM Check if conda environment exists
+echo [INFO] Checking conda environment...
 set "env_name=correct-drug-env"
-
-conda env list | findstr /r "^%env_name%\s" >nul 2>&1
-if %errorlevel% neq 0 (
-    call :print_error "conda环境 '%env_name%' 不存在"
-    call :print_info "请先创建conda环境："
+conda env list | findstr "%env_name%" >nul 2>&1
+if errorlevel 1 (
+    echo [ERROR] conda environment '%env_name%' does not exist
+    echo [INFO] Please create the environment first:
     echo   conda create -n %env_name% python=3.10
     echo   conda activate %env_name%
-    echo   pip install -r requirements.txt -i https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple
+    echo   pip install -r requirements.txt
     echo.
     pause
     exit /b 1
 )
-call :print_success "conda环境 '%env_name%' 已找到"
-goto :eof
+echo [SUCCESS] conda environment '%env_name%' found
 
-:check_env_file
-call :print_info "检查.env文件是否存在..."
+REM Check if .env file exists
+echo [INFO] Checking .env file...
 if not exist ".env" (
-    call :print_error ".env文件不存在"
-    call :print_info "请创建.env文件并配置以下内容："
-    echo.
-    echo OPENAI_API_KEY=your_api_key_here
-    echo OPENAI_BASE_URL=your_api_base_url_here
+    echo [ERROR] .env file not found
+    echo [INFO] Please create .env file with:
+    echo   OPENAI_API_KEY=your_api_key_here
+    echo   OPENAI_BASE_URL=your_api_base_url_here
     echo.
     pause
     exit /b 1
 )
-call :print_success ".env文件已找到"
-goto :eof
+echo [SUCCESS] .env file found
 
-:check_main_py
-call :print_info "检查main.py文件是否存在..."
+REM Check if main.py exists
+echo [INFO] Checking main.py file...
 if not exist "main.py" (
-    call :print_error "main.py文件不存在"
+    echo [ERROR] main.py file not found
     pause
     exit /b 1
 )
-call :print_success "main.py文件已找到"
-goto :eof
+echo [SUCCESS] main.py file found
 
-:run_script
-set "env_name=correct-drug-env"
-call :print_info "激活conda环境: %env_name%"
+echo.
+echo [INFO] All checks passed, starting script...
+echo.
 
-:: 激活conda环境
+REM Activate conda environment
+echo [INFO] Activating conda environment: %env_name%
 call conda activate %env_name%
-
-if %errorlevel% neq 0 (
-    call :print_error "conda环境激活失败"
+if errorlevel 1 (
+    echo [ERROR] Failed to activate conda environment
     pause
     exit /b 1
 )
+echo [SUCCESS] Environment activated
 
-call :print_success "环境激活成功"
-
-:: 构建命令
+REM Build command
 set "cmd=python main.py"
-
-:: 添加传递的参数
-if "%~1" neq "" (
-    set "cmd=%cmd% %*"
-    call :print_info "运行命令: !cmd!"
+if not "%~1"=="" (
+    set "cmd=!cmd! %*"
+    echo [INFO] Running command: !cmd!
 ) else (
-    call :print_info "运行命令: !cmd! (使用默认参数)"
+    echo [INFO] Running command: !cmd! with default parameters
 )
 
-:: 运行脚本
-%cmd%
-
-if %errorlevel% neq 0 (
-    call :print_error "脚本执行失败"
+REM Run the script
+!cmd!
+if errorlevel 1 (
+    echo [ERROR] Script execution failed
     pause
     exit /b 1
 ) else (
-    call :print_success "脚本执行完成"
+    echo [SUCCESS] Script execution completed
 )
 
-goto :eof
-
-:skip_functions
-
-:: 主程序开始
-echo.
-call :print_info "开始运行AI药物名称纠正工具..."
-echo.
-
-:: 检查帮助参数
-if "%1"=="-h" call :show_usage & exit /b 0
-if "%1"=="--help" call :show_usage & exit /b 0
-if "%1"=="/?" call :show_usage & exit /b 0
-
-:: 执行检查
-call :check_conda
-if %errorlevel% neq 0 exit /b 1
-
-call :check_conda_env
-if %errorlevel% neq 0 exit /b 1
-
-call :check_env_file
-if %errorlevel% neq 0 exit /b 1
-
-call :check_main_py
-if %errorlevel% neq 0 exit /b 1
-
-echo.
-call :print_info "所有检查通过，开始运行脚本..."
-echo.
-
-:: 运行脚本
-call :run_script %*
-
-:: 如果是双击运行，保持窗口打开
+REM Keep window open if double-clicked
 if "%~1"=="" (
     echo.
     pause
 )
 
+goto :end
+
+:show_help
+echo.
+echo AI Drug Name Correction Tool - Windows Batch Script
+echo.
+echo Usage:
+echo   run.bat                           - Basic run, process Excel files in current directory
+echo   run.bat --thinking                - Enable thinking mode for detailed processing
+echo   run.bat --dir "C:\path\to\files"  - Specify directory to process Excel files
+echo   run.bat --dir "C:\path\to\files" --thinking - Combine directory and thinking mode
+echo.
+echo Requirements:
+echo   - Conda environment 'correct-drug-env' must be created
+echo   - .env file must contain correct API configuration
+echo   - Excel files should contain drug name data in first column
+echo.
+pause
+goto :end
+
+:end
 endlocal 

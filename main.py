@@ -47,15 +47,13 @@ def read_drugs_excel(xlsx_path):
     """
     try:
         # 检查文件是否存在
-        if not os.path.exists('drugs.xlsx'):
-            print("错误：drugs.xlsx 文件不存在")
+        if not os.path.exists(xlsx_path):
+            print(f"错误：{xlsx_path} 文件不存在")
             return None
         
         df = pd.read_excel(xlsx_path)
         
-        # 将DataFrame转换为按列组织的list格式
-        # 每列数据作为一个list，所有列组成一个大的list
-        drugs_list = [df[col].tolist() for col in df.columns]
+        drugs_list = [df[df.columns[0]].tolist()]
         
         return drugs_list
     
@@ -86,7 +84,7 @@ def correct_drug_name(drug_list,thinking):
         thinking (bool): 是否开启思考
 
     Returns:
-        list: 纠正后的药物名称列表，每个元素是纠正后的结果字符串。
+        list: 纠正后的药物名称列表，每个元素是纠正后的结果列表。
     """
     corrected_results = []
     
@@ -123,18 +121,28 @@ def correct_drug_name(drug_list,thinking):
                         # 打印回复过程
                         # print(delta.content, end='', flush=True)
                         answer_content += delta.content
-            # 将字符串转换为列表
-            corrected_names = answer_content.strip('```')
+            
+            # 清理和处理返回的结果
+            corrected_names = answer_content.strip()
             print(corrected_names)
+            
+            # 尝试解析为列表
             if corrected_names.startswith('[') and corrected_names.endswith(']'):
                 try:
                     # 尝试使用eval安全地解析列表字符串
                     import ast
-                    corrected_names = ast.literal_eval(corrected_names)
+                    parsed_result = ast.literal_eval(corrected_names)
+                    if isinstance(parsed_result, list):
+                        corrected_results.append(parsed_result)
+                    else:
+                        # 如果不是列表，保持原始输入
+                        corrected_results.append(drugs)
                 except (ValueError, SyntaxError):
-                    # 如果解析失败，保持原始字符串
-                    pass
-            corrected_results.append(corrected_names)
+                    # 如果解析失败，保持原始输入
+                    corrected_results.append(drugs)
+            else:
+                # 如果不是列表格式，保持原始输入
+                corrected_results.append(drugs)
             
         except Exception as e:
             print(f"处理药物列表时发生错误：{str(e)}")
