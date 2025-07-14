@@ -51,12 +51,21 @@ def read_drugs_excel(xlsx_path):
             print(f"错误：{xlsx_path} 文件不存在")
             return None
         
+        # 检查是否为Excel临时文件
+        filename = os.path.basename(xlsx_path)
+        if filename.startswith('~$') or filename.startswith('.~'):
+            print(f"警告：跳过Excel临时文件：{xlsx_path}")
+            return None
+        
         df = pd.read_excel(xlsx_path)
         
         drugs_list = [df[df.columns[0]].tolist()]
         
         return drugs_list
     
+    except PermissionError as e:
+        print(f"权限错误：无法访问文件 {xlsx_path}，可能是Excel临时文件或文件正在被使用：{str(e)}")
+        return None
     except Exception as e:
         print(f"读取文件时发生错误：{str(e)}")
         return None
@@ -200,16 +209,33 @@ def batch_correct(dir_path, thinking=False):
         None
     """
     for file in os.listdir(dir_path):
-        if file.endswith('.xlsx') and not file.startswith('.~') and not file.startswith('correct-'):
+        if (file.endswith('.xlsx') and 
+            not file.startswith('.~') and 
+            not file.startswith('~$') and 
+            not file.startswith('correct-')):
             original_file_path = os.path.join(dir_path, file)
             output_file_path = os.path.join(dir_path, "correct-"+file)
             
-            drugs_list = read_drugs_excel(original_file_path)
-            print(f"处理文件：{original_file_path}")
-            grouped_drugs = split_list_into_chunks(drugs_list[0], 10)
-            corrected_results = correct_drug_name(grouped_drugs, thinking)
-            corrected_results = [item for sublist in corrected_results for item in sublist]            
-            gen_xlsx(corrected_results, original_file_path, output_file_path)
+            try:
+                print(f"处理文件：{original_file_path}")
+                drugs_list = read_drugs_excel(original_file_path)
+                
+                if drugs_list is None:
+                    print(f"跳过文件：{original_file_path}")
+                    continue
+                
+                grouped_drugs = split_list_into_chunks(drugs_list[0], 10)
+                corrected_results = correct_drug_name(grouped_drugs, thinking)
+                corrected_results = [item for sublist in corrected_results for item in sublist]            
+                
+                if gen_xlsx(corrected_results, original_file_path, output_file_path):
+                    print(f"成功处理文件：{original_file_path} -> {output_file_path}")
+                else:
+                    print(f"处理文件失败：{original_file_path}")
+                    
+            except Exception as e:
+                print(f"处理文件 {original_file_path} 时发生意外错误：{str(e)}")
+                continue
 
 
 if __name__ == "__main__":
